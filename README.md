@@ -104,3 +104,4 @@ create table medications (
 
 - Jangan commit `.env` ke repo, gunakan `.env.example` sebagai template.
 - Pastikan Supabase sudah memiliki tabel `medications` dan data sudah ada.
+# create-api-medication

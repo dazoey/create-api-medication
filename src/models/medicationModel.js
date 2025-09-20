@@ -1,54 +1,62 @@
 import { supabase } from "../config/supabaseClient.js";
 
 export const MedicationModel = {
-  async getAll() {
-    const { data, error } = await supabase
+  async getAll({ name, page = 1, limit = 10 }) {
+    let query = supabase.from("medications").select("*", { count: "exact" });
+
+    if (name) {
+      query = query.ilike("name", `%${name}%`);
+    }
+
+    const offset = (page - 1) * limit;
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+    if (error) throw new Error(error.message);
+    return { data, count };
+  },
+
+  async getTotalMedications() {
+    const { count, error } = await supabase
       .from("medications")
-      .select(
-        "id, sku, name, description, price, quantity, category_id, supplier_id"
-      );
-    if (error) throw error;
-    return data;
+      .select("*", { count: "exact", head: true });
+
+    if (error) throw new Error(error.message);
+    return count;
   },
 
   async getById(id) {
     const { data, error } = await supabase
       .from("medications")
-      .select(
-        `
-        id, sku, name, description, price, quantity,
-        categories ( id, name ),
-        suppliers ( id, name, email, phone ),
-      `
-      )
+      .select("*")
       .eq("id", id)
       .single();
-    if (error) throw error;
+    if (error) throw new Error("Medication not found");
     return data;
   },
 
-  async create(payload) {
+  async create(input) {
     const { data, error } = await supabase
       .from("medications")
-      .insert([payload])
-      .select();
-    if (error) throw error;
-    return data[0];
+      .insert(input)
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
-  async update(id, payload) {
+  async update(id, input) {
     const { data, error } = await supabase
       .from("medications")
-      .update(payload)
+      .update(input)
       .eq("id", id)
-      .select();
-    if (error) throw error;
-    return data[0];
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
   async remove(id) {
     const { error } = await supabase.from("medications").delete().eq("id", id);
-    if (error) throw error;
-    return { success: true };
+    if (error) throw new Error(error.message);
+    return true;
   },
 };

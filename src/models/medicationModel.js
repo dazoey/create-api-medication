@@ -73,11 +73,11 @@ export const MedicationModel = {
   },
 
   async getTotal() {
-    const { count, error } = await supabase
+    const { data, error } = await supabase
       .from("medications")
-      .select("*", { count: "exact", head: true });
+      .select("id"); // ambil id aja biar ringan
 
     if (error) throw error;
-    return count;
+    return data.length;
   },
 };

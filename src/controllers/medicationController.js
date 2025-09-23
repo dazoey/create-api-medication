@@ -4,12 +4,13 @@ export const MedicationController = {
   async getAll(req, res) {
     try {
       const { name, page, limit } = req.query;
-      const meds = await MedicationModel.getAll({
+      const result = await MedicationModel.getAll({
         name,
-        page: page ? parseInt(page) : undefined,
-        limit: limit ? parseInt(limit) : undefined,
+        page: page ? parseInt(page) : null,
+        limit: limit ? parseInt(limit) : null,
       });
-      res.json(meds);
+
+      res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

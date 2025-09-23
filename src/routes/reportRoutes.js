@@ -1,8 +1,8 @@
-import { Router } from "express";
+import express from "express";
 import { MedicationController } from "../controllers/medicationController.js";
 
-const router = Router();
+const router = express.Router();
 
-router.get("/total", MedicationController.getTotalMedications);
+router.get("/total", MedicationController.getTotal);
 
 export default router;

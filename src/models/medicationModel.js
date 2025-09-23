@@ -1,26 +1,37 @@
 import { supabase } from "../config/supabaseClient.js";
 
 export const MedicationModel = {
-  async getAll({ name, page, limit }) {
+  async getAll(filters = {}) {
     let query = supabase
       .from("medications")
-      .select("id, sku, name, description, price, quantity, category_id, supplier_id", { count: "exact" });
+      .select(
+        "id, sku, name, description, price, quantity, category_id, supplier_id",
+        { count: 'exact' }
+      );
 
-    // searching
-    if (name) {
-      query = query.ilike("name", `%${name}%`);
+    if (filters.name) {
+      query = query.ilike('name', `%${filters.name}%`);
     }
 
-    // pagination
-    if (page && limit) {
-      const from = (page - 1) * limit;
-      const to = from + limit - 1;
-      query = query.range(from, to);
-    }
+    const page = parseInt(filters.page) || 1;
+    const limit = parseInt(filters.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    query = query.range(offset, offset + limit - 1);
 
     const { data, error, count } = await query;
+    
     if (error) throw error;
-    return { data, total: count };
+    
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total: count,
+        totalPages: Math.ceil(count / limit)
+      }
+    };
   },
 
   async getById(id) {
@@ -30,7 +41,7 @@ export const MedicationModel = {
         `
         id, sku, name, description, price, quantity,
         categories ( id, name ),
-        suppliers ( id, name, email, phone )
+        suppliers ( id, name, email, phone ),
       `
       )
       .eq("id", id)
@@ -40,8 +51,11 @@ export const MedicationModel = {
   },
 
   async create(payload) {
-    if (payload.price < 0 || payload.quantity < 0) {
-      throw new Error("Price dan quantity tidak boleh kurang dari 0");
+    if (payload.quantity < 0) {
+      throw new Error("Jumlah tidak bisa kurang dari 0");
+    }
+    if (payload.price < 0) {
+      throw new Error("Harga tidak bisa kurang dari 0");
     }
 
     const { data, error } = await supabase
@@ -53,8 +67,11 @@ export const MedicationModel = {
   },
 
   async update(id, payload) {
-    if (payload.price < 0 || payload.quantity < 0) {
-      throw new Error("Price dan quantity tidak boleh kurang dari 0");
+    if (payload.quantity !== undefined && payload.quantity < 0) {
+      throw new Error("Jumlah tidak bisa kurang dari 0");
+    }
+    if (payload.price !== undefined && payload.price < 0) {
+      throw new Error("Harga tidak bisa kurang dari 0");
     }
 
     const { data, error } = await supabase
@@ -72,12 +89,12 @@ export const MedicationModel = {
     return { success: true };
   },
 
-  async getTotal() {
-    const { data, error } = await supabase
+  async getTotalCount() {
+    const { count, error } = await supabase
       .from("medications")
-      .select("id"); // ambil id aja biar ringan
-
+      .select("*", { count: 'exact', head: true });
+    
     if (error) throw error;
-    return data.length;
+    return count;
   },
 };

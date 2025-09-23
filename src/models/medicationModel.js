@@ -1,62 +1,74 @@
 import { supabase } from "../config/supabaseClient.js";
 
 export const MedicationModel = {
-  async getAll({ name, page = 1, limit = 10 }) {
-    let query = supabase.from("medications").select("*", { count: "exact" });
+  async getAll({ name, page, limit }) {
+    let query = supabase
+      .from("medications")
+      .select("id, sku, name, description, price, quantity, category_id, supplier_id", { count: "exact" });
 
+    // pencarian
     if (name) {
       query = query.ilike("name", `%${name}%`);
     }
 
-    const offset = (page - 1) * limit;
-    query = query.range(offset, offset + limit - 1);
+    // pagination
+    if (page && limit) {
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      query = query.range(from, to);
+    }
 
     const { data, error, count } = await query;
-    if (error) throw new Error(error.message);
-    return { data, count };
-  },
+    if (error) throw error;
 
-  async getTotalMedications() {
-    const { count, error } = await supabase
-      .from("medications")
-      .select("*", { count: "exact", head: true });
-
-    if (error) throw new Error(error.message);
-    return count;
+    return { data, total: count };
   },
 
   async getById(id) {
     const { data, error } = await supabase
       .from("medications")
-      .select("*")
+      .select(
+        `
+        id, sku, name, description, price, quantity,
+        categories ( id, name ),
+        suppliers ( id, name, email, phone )
+      `
+      )
       .eq("id", id)
       .single();
-    if (error) throw new Error("Medication not found");
+    if (error) throw error;
     return data;
   },
 
-  async create(input) {
-    const { data, error } = await supabase
-      .from("medications")
-      .insert(input)
-      .single();
-    if (error) throw new Error(error.message);
-    return data;
+  async create(payload) {
+    // validasi stok & harga
+    if (payload.price < 0) throw new Error("Price tidak boleh kurang dari 0");
+    if (payload.quantity < 0) throw new Error("Quantity tidak boleh kurang dari 0");
+
+    const { data, error } = await supabase.from("medications").insert([payload]).select();
+    if (error) throw error;
+    return data[0];
   },
 
-  async update(id, input) {
-    const { data, error } = await supabase
-      .from("medications")
-      .update(input)
-      .eq("id", id)
-      .single();
-    if (error) throw new Error(error.message);
-    return data;
+  async update(id, payload) {
+    // validasi stok & harga
+    if (payload.price !== undefined && payload.price < 0) throw new Error("Price tidak boleh kurang dari 0");
+    if (payload.quantity !== undefined && payload.quantity < 0) throw new Error("Quantity tidak boleh kurang dari 0");
+
+    const { data, error } = await supabase.from("medications").update(payload).eq("id", id).select();
+    if (error) throw error;
+    return data[0];
   },
 
   async remove(id) {
     const { error } = await supabase.from("medications").delete().eq("id", id);
-    if (error) throw new Error(error.message);
-    return true;
+    if (error) throw error;
+    return { success: true };
+  },
+
+  async getTotal() {
+    const { count, error } = await supabase.from("medications").select("*", { count: "exact", head: true });
+    if (error) throw error;
+    return count;
   },
 };
